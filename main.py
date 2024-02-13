@@ -1,4 +1,4 @@
-from random import choices, randint
+from random import choices, randint, randrange
 
 # Initial sequence of amino acids, "HPPHPPH" or "01001010"
 Sequence = list[int]  # or list[str]
@@ -27,20 +27,28 @@ def fitness(chromosome: Chromosome):
 def singelPointCrossover(a: Chromosome, b: Chromosome) -> tuple[Chromosome, Chromosome]:
     if len(a) != len(b):
         raise ValueError("Genome a and b must be of the same lenght")
-    
+
     lenght = len(a)
-    
+
     if lenght < 2:
         return a, b
 
-    p = randint(1, lenght -1)
+    p = randint(1, lenght - 1)
     return a[0:p] + b[:p], b[0:p] + a[:p]
 
 
-
 # Performe a mutation on a specific Chromosome
-def mutation():
-    return NotImplementedError
+def mutation(chromosome: Chromosome) -> Chromosome:
+    index = randrange(len(chromosome))
+    weights = (
+        [0, 1, 0, 1] if chromosome[index] in ["R", "L"] else [1, 0, 1, 0]
+    )  # Set zero weight for antipod moves [R, L] and [U, D]
+
+    chromosome[index] = choices(
+        ["R", "U", "L", "D"], weights=weights
+    ).pop()  # Why pop(), to return a string instead of a list[str]
+
+    return chromosome
 
 
 # Selection: prepare the next generation
