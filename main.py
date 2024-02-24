@@ -1,11 +1,19 @@
 from random import choices, randint, randrange
+import numpy as np
+import numpy.typing
 
-# Initial sequence of amino acids, "HPPHPPH" or "01001010"
+# Initial sequence of amino acids, "HPPHPPH" or "01001010" (1-for P and 0-for H)
 Sequence = list[int]  # or list[str]
 
-# A set o rules (RULD) representing a self-avoiding path in a lattice
+# Chromosome = a set o rules (RULD) representing a self-avoiding path in a lattice
 Chromosome = list[str]
 
+# Lattice = matrix
+# Lattice = numpy.typing.NDArray(
+#     (int, int), -1, dtype=np.int8
+# )  # Something like this, a matrix filled with -1 to easily represent P and H in it (0 and 1), can be obtained with np.full()
+
+# Population = a list of chromosomes
 Population = list[Chromosome]
 
 
@@ -18,13 +26,60 @@ def generatePopulation(size: int, chromosome_length: int) -> Population:
     return [generateChromosome(chromosome_length) for _ in range(size)]
 
 
-# Evaluate a chromosome fittnes
+# Descritpion
+def getLattice(lines: int, columns: int):
+    return np.full((lines, columns), -1, dtype=np.int8)
+
+
+# Evaluate a chromosome fitness
 def fitness(chromosome: Chromosome):
-    return NotImplementedError
+    length = len(chromosome)
+    lattice = getLattice(   # TODO: find a better solution
+        length, length
+    )  # easiest/worst solution, regarding memory at least, get a matrix of size 4n^2
+
+    score = 0
+    X = Y = (
+        length - 1
+    )  # Does it make any difference if it's either length or length-1 ?
+
+    # Flag used to check sequential neighbours
+    flag = False
+    for letter in chromosome:
+        # Populate lattice
+        lattice[X][Y] = 0 if letter == "H" else 1
+
+        # Raised flag -> previous letter was H
+        if flag and letter == "H":
+            score -= 1
+
+        # Check for neighbour H
+        if (
+            lattice[X + 1][Y] == 0
+            or lattice[X - 1][Y] == 0
+            or lattice[X][Y + 1] == 0
+            or lattice[X][Y - 1] == 0
+        ):
+            score += 1
+
+        match letter:
+            case "U":
+                X -= 1
+            case "D":
+                X += 1
+            case "R":
+                Y += 1
+            case "L":
+                Y -= 1
+
+        # Raise the flag whether the current letter is H
+        flag = True if letter == "H" else False
+
+    return -score
 
 
 # Performe crossover on two parents and return two new childs
-def singelPointCrossover(a: Chromosome, b: Chromosome) -> tuple[Chromosome, Chromosome]:
+def singlePointCrossover(a: Chromosome, b: Chromosome) -> tuple[Chromosome, Chromosome]:
     if len(a) != len(b):
         raise ValueError("Genome a and b must be of the same lenght")
 
@@ -53,4 +108,8 @@ def mutation(chromosome: Chromosome) -> Chromosome:
 
 # Selection: prepare the next generation
 def selection():
-    return NotImplementedError
+    return NotImplementedError  # FIXME: Add an implementation
+
+
+def runEvolution():  # TODO: Assemble this part
+    pop = generatePopulation(10, 10)
