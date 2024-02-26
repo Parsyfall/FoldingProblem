@@ -1,4 +1,4 @@
-from random import choices, randint, randrange
+from random import choices, randint, randrange, random
 import numpy as np
 import numpy.typing
 
@@ -11,7 +11,7 @@ Chromosome = list[str]
 # Lattice = matrix
 # Lattice = numpy.typing.NDArray(
 #     (int, int), -1, dtype=np.int8
-# )  # Something like this, a matrix filled with -1 to easily represent P and H in it (0 and 1), can be obtained with np.full()
+# )  # Something like this, a matrix filled with -1 to easily represent P and H in it (1 and 0), can be obtained with np.full()
 
 # Population = a list of chromosomes
 Population = list[Chromosome]
@@ -32,9 +32,9 @@ def getLattice(lines: int, columns: int):
 
 
 # Evaluate a chromosome fitness
-def fitness(chromosome: Chromosome):
+def fitness(chromosome: Chromosome) -> int:
     length = len(chromosome)
-    lattice = getLattice(   # TODO: find a better solution
+    lattice = getLattice(  # TODO: find a better solution
         length, length
     )  # easiest/worst solution, regarding memory at least, get a matrix of size 4n^2
 
@@ -43,8 +43,11 @@ def fitness(chromosome: Chromosome):
         length - 1
     )  # Does it make any difference if it's either length or length-1 ?
 
+    directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+
     # Flag used to check sequential neighbours
     flag = False
+
     for letter in chromosome:
         # Populate lattice
         lattice[X][Y] = 0 if letter == "H" else 1
@@ -54,13 +57,11 @@ def fitness(chromosome: Chromosome):
             score -= 1
 
         # Check for neighbour H
-        if (
-            lattice[X + 1][Y] == 0
-            or lattice[X - 1][Y] == 0
-            or lattice[X][Y + 1] == 0
-            or lattice[X][Y - 1] == 0
-        ):
-            score += 1
+        # TODO: Check self-avoiding walk
+        # TODO: Handle auto of bounds check
+        for dir in directions:
+            if lattice[X + dir[0]][Y + dir[1]] == 0:
+                score += 1
 
         match letter:
             case "U":
@@ -78,7 +79,7 @@ def fitness(chromosome: Chromosome):
     return -score
 
 
-# Performe crossover on two parents and return two new childs
+# Performe crossover on two parents and return two new children
 def singlePointCrossover(a: Chromosome, b: Chromosome) -> tuple[Chromosome, Chromosome]:
     if len(a) != len(b):
         raise ValueError("Genome a and b must be of the same lenght")
@@ -93,15 +94,19 @@ def singlePointCrossover(a: Chromosome, b: Chromosome) -> tuple[Chromosome, Chro
 
 
 # Performe a mutation on a specific Chromosome
-def mutation(chromosome: Chromosome) -> Chromosome:
-    index = randrange(len(chromosome))
-    weights = (
-        [0, 1, 0, 1] if chromosome[index] in ["R", "L"] else [1, 0, 1, 0]
-    )  # Set zero weight for antipod moves [R, L] and [U, D]
+def mutation(
+    population: Population, probability: float
+) -> Chromosome:
+    for chromosome in population:
+        if random() < probability:
+            index = randrange(len(chromosome))
+            weights = (
+                [0, 1, 0, 1] if chromosome[index] in ["R", "L"] else [1, 0, 1, 0]
+            )  # Set zero weight for antipod moves [R, L] and [U, D]
 
-    chromosome[index] = choices(
-        ["R", "U", "L", "D"], weights=weights
-    ).pop()  # Why pop(), to return a string instead of a list[str]
+            chromosome[index] = choices(
+                ["R", "U", "L", "D"], weights=weights
+            ).pop()  # Why pop(), to return a string instead of a list[str]
 
     return chromosome
 
