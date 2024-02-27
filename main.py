@@ -32,13 +32,13 @@ def getLattice(lines: int, columns: int):
 
 
 # Evaluate a chromosome fitness
-def fitness(chromosome: Chromosome) -> int:
+def fitness(chromosome: Chromosome) -> float:
     length = len(chromosome)
     lattice = getLattice(  # TODO: find a better solution
         length, length
     )  # easiest/worst solution, regarding memory at least, get a matrix of size 4n^2
 
-    score = 0
+    collision = score = 0
     X = Y = (
         length - 1
     )  # Does it make any difference if it's either length or length-1 ?
@@ -49,6 +49,10 @@ def fitness(chromosome: Chromosome) -> int:
     flag = False
 
     for letter in chromosome:
+        # Collision in folding
+        if lattice[X][Y] in [0, 1]:
+            collision += 1
+
         # Populate lattice
         lattice[X][Y] = 0 if letter == "H" else 1
 
@@ -57,7 +61,6 @@ def fitness(chromosome: Chromosome) -> int:
             score -= 1
 
         # Check for neighbour H
-        # TODO: Check self-avoiding walk
         # TODO: Handle auto of bounds check
         for dir in directions:
             if lattice[X + dir[0]][Y + dir[1]] == 0:
@@ -76,7 +79,12 @@ def fitness(chromosome: Chromosome) -> int:
         # Raise the flag whether the current letter is H
         flag = True if letter == "H" else False
 
-    return -score
+    if collision == 0:
+        return score * 100 + 1
+    elif collision == 2:
+        return (score * 100 + 1) / 2
+    else:
+        return (score * 100 + 1) / collision * collision
 
 
 # Performe crossover on two parents and return two new children
@@ -94,11 +102,9 @@ def singlePointCrossover(a: Chromosome, b: Chromosome) -> tuple[Chromosome, Chro
 
 
 # Performe a mutation on a specific Chromosome
-def mutation(
-    population: Population, probability: float
-) -> Chromosome:
+def mutation(population: Population, probability: float) -> Chromosome:
     for chromosome in population:
-        if random() < probability:
+        if random() <= probability:
             index = randrange(len(chromosome))
             weights = (
                 [0, 1, 0, 1] if chromosome[index] in ["R", "L"] else [1, 0, 1, 0]
@@ -113,6 +119,7 @@ def mutation(
 
 # Selection: prepare the next generation
 def selection():
+    # TODO: Sort with a dict (index, fitness) ensure elitism
     return NotImplementedError  # FIXME: Add an implementation
 
 
