@@ -1,127 +1,123 @@
 from random import choices, randint, randrange, random
 import numpy as np
-import numpy.typing
+from typing import List
 
-# Initial sequence of amino acids, "HPPHPPH" or "01001010" (1-for P and 0-for H)
-Sequence = list[int]  # or list[str]
 
-# Chromosome = a set o rules (RULD) representing a self-avoiding path in a lattice
-Chromosome = list[str]
+class Chromosome:
+    sequence: List[str] = []
+    fitness: float = 0.0
 
-# Lattice = matrix
-# Lattice = numpy.typing.NDArray(
-#     (int, int), -1, dtype=np.int8
-# )  # Something like this, a matrix filled with -1 to easily represent P and H in it (1 and 0), can be obtained with np.full()
+    @staticmethod
+    def get_lattice(lines: int, columns: int) -> np.ndarray:
+        return np.full((lines, columns), -1, dtype=np.int8)
 
-# Population = a list of chromosomes
+    @staticmethod
+    def generate_chromosome(length: int) -> List[str]:
+        return choices(["R", "U", "L", "D"], k=length)
+
+    def calc_fitness(self) -> float:
+        # TODO: Try orthogonal axes and a vector of points instead of matrix
+        length = len(self.sequence)
+        lattice = self.get_lattice(length, length)
+
+        collision = score = 0
+        X = Y = length - 1
+
+        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+
+        flag = False
+
+        for letter in self.sequence:
+            if lattice[X][Y] in [0, 1]:
+                collision += 1
+
+            lattice[X][Y] = 0 if letter == "H" else 1
+
+            if flag and letter == "H":
+                score -= 1
+
+            for dir in directions:
+                if 0 <= X + dir[0] < length and 0 <= Y + dir[1] < length:
+                    if lattice[X + dir[0]][Y + dir[1]] == 0:
+                        score += 1
+
+            match letter:
+                case "U":
+                    X -= 1
+                case "D":
+                    X += 1
+                case "R":
+                    Y += 1
+                case "L":
+                    Y -= 1
+
+            flag = letter == "H"
+
+        if collision == 0:
+            self.fitness = score * 100 + 1
+        elif collision == 2:
+            self.fitness = (score * 100 + 1) / 2
+        else:
+            self.fitness = (score * 100 + 1) / collision * collision
+
+        return self.fitness
+
+    def __init__(self, length: int = 1, sequence: List[str] = []) -> None:
+        if not sequence:
+            sequence = self.generate_chromosome(length)
+        self.sequence = sequence
+        self.fitness = self.calc_fitness()
+
+
 Population = list[Chromosome]
-
-
-def generateChromosome(length: int) -> Chromosome:
-    return choices(["R", "U", "L", "D"], k=length)
 
 
 # Initialization: generate initial generation
 def generatePopulation(size: int, chromosome_length: int) -> Population:
-    return [generateChromosome(chromosome_length) for _ in range(size)]
-
-
-# Descritpion
-def getLattice(lines: int, columns: int):
-    return np.full((lines, columns), -1, dtype=np.int8)
-
-
-# Evaluate a chromosome fitness
-def fitness(chromosome: Chromosome) -> float:
-    length = len(chromosome)
-    lattice = getLattice(  # TODO: find a better solution
-        length, length
-    )  # easiest/worst solution, regarding memory at least, get a matrix of size 4n^2
-
-    collision = score = 0
-    X = Y = (
-        length - 1
-    )  # Does it make any difference if it's either length or length-1 ?
-
-    directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-
-    # Flag used to check sequential neighbours
-    flag = False
-
-    for letter in chromosome:
-        # Collision in folding
-        if lattice[X][Y] in [0, 1]:
-            collision += 1
-
-        # Populate lattice
-        lattice[X][Y] = 0 if letter == "H" else 1
-
-        # Raised flag -> previous letter was H
-        if flag and letter == "H":
-            score -= 1
-
-        # Check for neighbour H
-        # TODO: Handle auto of bounds check
-        for dir in directions:
-            if lattice[X + dir[0]][Y + dir[1]] == 0:
-                score += 1
-
-        match letter:
-            case "U":
-                X -= 1
-            case "D":
-                X += 1
-            case "R":
-                Y += 1
-            case "L":
-                Y -= 1
-
-        # Raise the flag whether the current letter is H
-        flag = True if letter == "H" else False
-
-    if collision == 0:
-        return score * 100 + 1
-    elif collision == 2:
-        return (score * 100 + 1) / 2
-    else:
-        return (score * 100 + 1) / collision * collision
+    return [Chromosome.generateChromosome(chromosome_length) for _ in range(size)]
 
 
 # Performe crossover on two parents and return two new children
 def singlePointCrossover(a: Chromosome, b: Chromosome) -> tuple[Chromosome, Chromosome]:
-    if len(a) != len(b):
+    if len(a.sequence) != len(b.sequence):
         raise ValueError("Genome a and b must be of the same lenght")
 
-    lenght = len(a)
+    lenght = len(a.sequence)
 
     if lenght < 2:
         return a, b
 
     p = randint(1, lenght - 1)
-    return a[0:p] + b[:p], b[0:p] + a[:p]
+    return a.sequence[0:p] + b.sequence[:p], b.sequence[0:p] + a.sequence[:p]
 
 
 # Performe a mutation on a specific Chromosome
-def mutation(population: Population, probability: float) -> Chromosome:
+def mutation(population: Population, probability: float):
     for chromosome in population:
         if random() <= probability:
-            index = randrange(len(chromosome))
+            index = randrange(len(chromosome.sequence))
             weights = (
-                [0, 1, 0, 1] if chromosome[index] in ["R", "L"] else [1, 0, 1, 0]
+                [0, 1, 0, 1]
+                if chromosome.sequence[index] in ["R", "L"]
+                else [1, 0, 1, 0]
             )  # Set zero weight for antipod moves [R, L] and [U, D]
 
-            chromosome[index] = choices(
+            chromosome.sequence[index] = choices(
                 ["R", "U", "L", "D"], weights=weights
             ).pop()  # Why pop(), to return a string instead of a list[str]
 
-    return chromosome
-
 
 # Selection: prepare the next generation
-def selection():
+def selection(population: Population) -> Population:  # Which method to use?
     # TODO: Sort with a dict (index, fitness) ensure elitism
     return NotImplementedError  # FIXME: Add an implementation
 
 
-def runEvolution():  # TODO: Assemble this part
+def runEvolution(population_size: int, generations: int):  # TODO: Assemble this part
+    # Initialize population
     pop = generatePopulation(10, 10)
+
+    # Performe selection on initial population
+    pop = selection()
+
+    t = 0
