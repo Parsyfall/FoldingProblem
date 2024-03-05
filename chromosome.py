@@ -7,6 +7,12 @@ class Chromosome:
     sequence: List[str] = []
     fitness: float = 0.0
 
+    def __init__(self, length: int = 1, sequence: List[str] = []) -> None:
+        if not sequence:
+            sequence = self.generate_chromosome(length)
+        self.sequence = sequence
+        self.fitness = self.calc_fitness()
+
     @staticmethod
     def get_lattice(lines: int, columns: int) -> np.ndarray:
         return np.full((lines, columns), -1, dtype=np.int8)
@@ -61,9 +67,3 @@ class Chromosome:
             self.fitness = (score * 100 + 1) / collision * collision
 
         return self.fitness
-
-    def __init__(self, length: int = 1, sequence: List[str] = []) -> None:
-        if not sequence:
-            sequence = self.generate_chromosome(length)
-        self.sequence = sequence
-        self.fitness = self.calc_fitness()
