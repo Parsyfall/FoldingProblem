@@ -6,12 +6,17 @@ Population = list[Chromosome]
 
 
 # Initialization: generate initial generation
-def generatePopulation(size: int, chromosome_length: int) -> Population:
-    return [Chromosome.generate_chromosome(chromosome_length) for _ in range(size)]
+def generate_population(population_size: int, chromosome_length: int) -> Population:
+    return [
+        Chromosome.generate_chromosome(chromosome_length)
+        for _ in range(population_size)
+    ]
 
 
 # Performe crossover on two parents and return two new children
-def singlePointCrossover(a: Chromosome, b: Chromosome) -> tuple[Chromosome, Chromosome]:
+def single_point_crossover(
+    a: Chromosome, b: Chromosome
+) -> tuple[Chromosome, Chromosome]:
     if len(a.sequence) != len(b.sequence):
         raise ValueError("Genome a and b must be of the same length")
 
@@ -66,11 +71,27 @@ def tournament(participants: list[Chromosome]) -> Chromosome:
     return Best
 
 
-def runEvolution(population_size: int, generations: int):  # TODO: Assemble this part
+def run_evolution(population_size: int, max_generations: int) -> Chromosome:
     # Initialize population
-    pop = generatePopulation(10, 10)
+    population: Population = generate_population(population_size, 10)
 
-    # Performe selection on initial population
-    pop = tournament_selection()
+    generation_number: int = 0
+    while generation_number < max_generations:
+        population = sorted(population, key=lambda x: x.score, reverse=True)
+        new_population: Population = population[:2]
 
-    t = 0
+        for _ in range(population_size - 2):
+            parents = rd.choices(population, k=2)
+            children = single_point_crossover(parents[0], parents[1])
+            new_population.extend(children)
+            
+        tournament_selection(population, 3, population_size - 2)
+        mutation(new_population, 1 / population_size)
+
+        # Recalculate fitness
+        for genome in new_population:
+            genome.calc_fitness()
+
+        population = new_population
+
+    return population[0]
